@@ -1,13 +1,6 @@
-# Python
-__pycache__/
-*.py[cod]
-*.class
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# VS Code
-.vscode/
+# Data 
+*.csv
+*.dta
 
 # Mac OS
 .DS_Store
