@@ -9,6 +9,7 @@
 .Rhistory
 .RData
 .Rproj.user/
+.Rproj
 
 # Environment
 .env
