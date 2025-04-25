@@ -3,13 +3,13 @@
 *.dta
 
 # Mac OS
-.DS_Store
+*.DS_Store
 
 # R
-.Rhistory
-.RData
-.Rproj.user/
-.Rproj
+*.Rhistory
+*.RData
+*.Rproj.user/
+*.Rproj
 
 # Environment
 .env
