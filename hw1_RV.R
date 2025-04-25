@@ -1,16 +1,40 @@
+################################################################################
+######################## INTERNATIONAL TRADE, 2025 - HM1 #######################
+###################### Garson, Jonathan & Maestri, Andrea ######################
+
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
+#### This script provide the answer to the HW1 of International Trade Class ####
+#################### provided by Thierry Mayer in 2024-2025 ####################
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-
+
+################################################################################
+
+##### 0. IMPORTING LIBRARIES AND DATA #####
+
+# Libraries --------------------------------------------------------------------
+
 library(data.table)
 library(fixest)
 library(here)
 library(modelsummary)
+library(ggplot2)
+library(patchwork)
 
-# Data --------------------------------------------------------------------
+# Data -------------------------------------------------------------------------
 
 trade = fread(here("biltrade.csv"))
 
 # Question 1 -------------------------------------------------------------------
+
+##### 1. ESTIMATING PARAMETERS FOR FMP COMPUTATION #####
+
+# Filter data for 2016 only, removing zero flows
 trade_1 = trade[year == 2016]
 trade_1 = trade_1[flow >= 0.0, ]
 
+# Regressing exports on relevant variables with several specifications
+# OLS (log), OLS, Poisson - Augmented version includes more parameters
+# to estimate trade costs than in Redding and Venables (2004)
 model_fmp = list(
   "OLS (Log + 1)" = feols(log(flow + 1) ~ log(distw) + contig | iso_o + iso_d, cluster = ~iso_o, data = trade_1 ),
   "OLS (Log + 1) - Aug." = feols(log(flow + 1) ~ log(distw) + contig + comlang_off + comcur + fta_wto
@@ -23,12 +47,14 @@ model_fmp = list(
                      | iso_o + iso_d, cluster = ~iso_o, data = trade_1 )
 )
 
+# Label map
 coef =c("log(distw)" = "ln Distance",
         "contig" = "Border",
         "comlang_off" = "Common Language",
         "comcur" = "Common Currency",
         "fta_wto" = "FTA/WTO")
 
+# Regression stats
 add <- data.frame(
   term = c("F-test", "Overdispersion"),
   fmp_ols_log1 = c(fitstat(model_fmp$`OLS (Log + 1)`, type = "f")$f$p, NA),
@@ -39,6 +65,7 @@ add <- data.frame(
   fmp_pois = c(NA, performance::check_overdispersion(model_fmp$`Poisson - Aug.`)$dispersion_ratio)
 )
 
+# Print out regression results
 fmp_table_rv = modelsummary(
   model = model_fmp,
   star = TRUE,
@@ -50,6 +77,8 @@ fmp_table_rv = modelsummary(
 
 writeLines(as.character(fmp_table_rv), "fmp_table_rv.typ")
 
+# Extract parameters
+# Standard parameters - as in Redding and Venables (2004)
 lambda_1_hat_log1 = model_fmp$`OLS (Log + 1)`$coefficients[["log(distw)"]] 
 lambda_1_hat_ols = model_fmp$OLS$coefficients[["log(distw)"]] 
 lambda_1_hat_pois = model_fmp$Poisson$coefficients[["log(distw)"]] 
@@ -82,6 +111,9 @@ lambda_5_hat_pois_aug = model_fmp$`Poisson - Aug.`$coefficients[["fta_wto"]]
 fmp_fe_log1_aug = fixef(model_fmp$`OLS (Log + 1) - Aug.`)$iso_d
 fmp_fe_ols_aug = fixef(model_fmp$`OLS - Aug.`)$iso_d
 fmp_fe_pois_aug = fixef(model_fmp$`Poisson - Aug.`)$iso_d
+
+
+##### 2. COMPUTING FMP AND GDP PER CAPITA #####
 
 # We build our new column, we take the power of our coefficient phi_hat since distance is a continuous variable in our model,
 # and the exponential of fixed effects, given they are dummy.
@@ -128,7 +160,7 @@ trade_1[, `:=` (exp_fe_imp_log1_aug = exp(fe_imp_log1_aug),
                 exp_fe_imp_pois_aug = exp(fe_imp_pois_aug))]
 
 
-# We create the fmp and gdp per capita variables
+# We create the FMP and GDP per capita variables
 trade_1[, fmp_log1 := sum(dist_struct_log1*border_struct_log1*exp_fe_imp_log1, na.rm = TRUE), by = iso_o]
 trade_1[, fmp_ols := sum(dist_struct_ols*border_struct_ols*exp_fe_imp_ols, na.rm = TRUE), by = iso_o]
 trade_1[, fmp_pois := sum(dist_struct_pois*border_struct_pois*exp_fe_imp_pois, na.rm = TRUE), by = iso_o]
@@ -142,6 +174,10 @@ trade_1[, fmp_ols_aug := sum(dist_struct_ols_aug*border_struct_ols_aug*comm_lang
 trade_1[, fmp_pois_aug := sum(dist_struct_pois_aug*border_struct_pois_aug*comm_lang_pois_aug
                               *comcur_pois_aug*fta_wto_pois_aug*exp_fe_imp_pois_aug, na.rm = TRUE), by = iso_o]
 
+
+##### 3. REGRESS GDP PER CAPITA ON FMP #####
+
+# Estimate regression models 
 list_model_1 <- list(
   "ln GDP" = list(
     "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1), cluster = ~iso_o, data = trade_1),
@@ -164,6 +200,7 @@ map =  c(
   "log(fmp_pois_aug)" = "ln FMP (Aug.)"
   )
 
+# Print regression results
 table1 = modelsummary(
   model = list_model_1,
   star = TRUE,
@@ -174,6 +211,8 @@ table1 = modelsummary(
 )
 
 writeLines(as.character(table1), "table1_rv.typ")
+
+##### 4. REPEAT ESTIMATING PARAMETERS ON MULTIPLE YEARS #####
 
 # Question 2  -------------------------------------------------------------
 trade_2 = trade[flow >= 0.0, ]
@@ -341,3 +380,63 @@ table1 = modelsummary(
 )
 
 writeLines(as.character(table1), "table2_rv.typ")
+
+
+##### 5. PLOT GDP VS FMP #####
+# Extract unique data for 2016 
+plot_data = unique(trade_1[, .(iso_o, gdp_o_cap, fmp_log1, fmp_ols, fmp_pois, 
+                               dist_struct_ols, border_struct_ols,exp_fe_imp_ols)])
+plot_data = plot_data[!is.na(gdp_o_cap)]
+
+# Filter to remove zero-FMP observations
+plot_data = plot_data[!((fmp_log1 < 0.00001) | (fmp_ols < 0.00001) | (fmp_pois < 0.00001))]
+
+
+#Adjust theme
+common_theme <- theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  )
+
+# FMP OLS Log
+fmp_log1_plot <- ggplot(data = plot_data, 
+                       aes(x = log(fmp_log1), y = log(gdp_o_cap), 
+                           label = iso_o)) +
+  geom_text(size = 3) +
+  theme_minimal(base_size = 14) +
+  labs(x = "ln FMP (Log OLS)", y = "ln GDP per Capita") +
+  common_theme
+
+# FMP OLS Log
+fmp_ols_plot <- ggplot(data = plot_data, 
+       aes(x = log(fmp_ols), y = log(gdp_o_cap), 
+           label = iso_o)) +
+  geom_text(size = 3) +
+  theme_minimal(base_size = 14) +
+  labs(x = "ln FMP (OLS)", y = "ln GDP per Capita") +
+  common_theme
+
+# FMP Poisson
+fmp_pois_plot <- ggplot(data = plot_data, 
+                       aes(x = log(fmp_pois), y = log(gdp_o_cap), 
+                           label = iso_o)) +
+  geom_text(size = 3) +
+  theme_minimal(base_size = 14) +
+  labs(x = "ln FMP (Poisson)", y = "ln GDP per Capita") +
+  common_theme
+
+
+# Combine plots vertically
+final_plot <- (fmp_log1_plot + 
+                 fmp_ols_plot + 
+                 fmp_pois_plot) +
+  plot_layout(ncol = 1) +  # Vertical stacking
+  plot_annotation(title = "GDP per capita vs FMP - Selected Estimations for FMP",
+                  theme = theme(plot.title = element_text(hjust = 0.5)))
+
+# Show the combined plot
+final_plot
+
+# Save
+plot_save_path = here("gdpvsfmp.png")
+ggsave(plot_save_path, final_plot, width = 8.5, height = 11, units = "in")
