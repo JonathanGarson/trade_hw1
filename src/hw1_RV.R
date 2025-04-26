@@ -113,7 +113,6 @@ fmp_fe_log1_aug = fixef(model_fmp$`OLS (Log + 1) - Aug.`)$iso_d
 fmp_fe_ols_aug = fixef(model_fmp$`OLS - Aug.`)$iso_d
 fmp_fe_pois_aug = fixef(model_fmp$`Poisson - Aug.`)$iso_d
 
-
 ##### 2. COMPUTING FMP AND GDP PER CAPITA #####
 
 # We build our new column, we take the power of our coefficient phi_hat since distance is a continuous variable in our model,
@@ -404,6 +403,22 @@ table1 = modelsummary(
 
 writeLines(as.character(table1), "output/table2_rv.typ")
 
+# Plotting heteroskedaticity ----------------------------------------------
+
+data = data.frame(
+  fv = fitted(list_model_1$`ln GDP`$`OLS`),
+  rv = resid(list_model_1$`ln GDP`$OLS)
+)
+
+ggplot(data, aes(x = fv, y = rv))+
+  geom_point(alpha = 0.2)+ 
+  labs(
+    x = "Fitted Values",
+    y = "Residual Values"
+  ) + 
+  geom_hline(yintercept = 0, color = "red")+
+  theme_classic()
+ggsave("output/heteroskedasticity.png", width = 10, height = 8)
 
 ##### 5. PLOT GDP VS FMP #####
 # Extract unique data for 2016 
