@@ -1,6 +1,8 @@
 library(data.table)
 library(fixest)
 library(here)
+library(lmtest)
+library(ggplot2)
 library(modelsummary)
 
 # Data --------------------------------------------------------------------
@@ -12,15 +14,15 @@ trade_1 = trade[year == 2016]
 trade_1 = trade_1[flow >= 0.0, ]
 
 model_fmp = list(
-  "OLS (Log + 1)" = feols(log(flow + 1) ~ log(distw) + contig | iso_o + iso_d, cluster = ~iso_o, data = trade_1 ),
+  "OLS (Log + 1)" = feols(log(flow + 1) ~ log(distw) + contig | iso_o + iso_d, vcov = "hetero", data = trade_1 ),
   "OLS (Log + 1) - Aug." = feols(log(flow + 1) ~ log(distw) + contig + comlang_off + comcur + fta_wto
-                                   | iso_o + iso_d, cluster = ~iso_o, data = trade_1 ),
-  "OLS" = feols(log(flow) ~ log(distw) + contig | iso_o + iso_d, cluster = ~iso_o, data = trade_1 ),
+                                   | iso_o + iso_d, vcov = "hetero", data = trade_1 ),
+  "OLS" = feols(log(flow) ~ log(distw) + contig | iso_o + iso_d, vcov = "hetero", data = trade_1 ),
   "OLS - Aug." = feols(log(flow) ~ log(distw) + contig  + comlang_off + comcur + fta_wto
-                | iso_o + iso_d, cluster = ~iso_o, data = trade_1 ),
-  "Poisson" = fepois(flow ~ log(distw) + contig | iso_o + iso_d, cluster = ~iso_o, data = trade_1 ),
+                | iso_o + iso_d, vcov = "hetero", data = trade_1 ),
+  "Poisson" = fepois(flow ~ log(distw) + contig | iso_o + iso_d, vcov = "hetero", data = trade_1 ),
   "Poisson - Aug." = fepois(flow ~ log(distw) + contig  + comlang_off + comcur + fta_wto
-                     | iso_o + iso_d, cluster = ~iso_o, data = trade_1 )
+                     | iso_o + iso_d, vcov = "hetero", data = trade_1 )
 )
 
 coef =c("log(distw)" = "ln Distance",
@@ -144,15 +146,15 @@ trade_1[, fmp_pois_aug := sum(dist_struct_pois_aug*border_struct_pois_aug*comm_l
 
 list_model_1 <- list(
   "ln GDP" = list(
-    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1), cluster = ~iso_o, data = trade_1),
-    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1) | iso_d, cluster = ~iso_o, data = trade_1),
-    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1_aug) | iso_d, cluster = ~iso_o, data = trade_1),
-    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols), cluster = ~iso_o, data = trade_1),
-    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols) | iso_d, cluster = ~iso_o, data = trade_1),
-    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols_aug) | iso_d, cluster = ~iso_o, data = trade_1),
-    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois), cluster = ~iso_o, data = trade_1),
-    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois) | iso_d, cluster = ~iso_o, data = trade_1),
-    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois_aug) | iso_d, cluster = ~iso_o, data = trade_1))
+    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1), vcov = "hetero", data = trade_1),
+    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1) | iso_d, vcov = hetero, data = trade_1),
+    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1_aug) | iso_d, vcov = hetero, data = trade_1),
+    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols), vcov = "hetero", data = trade_1),
+    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols) | iso_d, vcov = "hetero", data = trade_1),
+    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols_aug) | iso_d, vcov = "hetero", data = trade_1),
+    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois), vcov = "hetero", data = trade_1),
+    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois) | iso_d, vcov = "hetero", data = trade_1),
+    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois_aug) | iso_d, vcov = "hetero", data = trade_1))
 )
 
 map =  c(
@@ -179,15 +181,15 @@ writeLines(as.character(table1), "table1_rv.typ")
 trade_2 = trade[flow >= 0.0, ]
 
 model_fmp = list(
-  "OLS (Log + 1)" = feols(log(flow + 1) ~ log(distw) + contig | iso_o + iso_d, cluster = ~iso_o, data = trade_2 ),
+  "OLS (Log + 1)" = feols(log(flow + 1) ~ log(distw) + contig | iso_o + iso_d, vcov = "hetero", data = trade_2 ),
   "OLS (Log + 1) - Aug." = feols(log(flow + 1) ~ log(distw) + contig + comlang_off + comcur + fta_wto
-                                 | iso_o + iso_d, cluster = ~iso_o, data = trade_2 ),
-  "OLS" = feols(log(flow) ~ log(distw) + contig | iso_o + iso_d, cluster = ~iso_o, data = trade_2 ),
+                                 | iso_o + iso_d, vcov = "hetero", data = trade_2 ),
+  "OLS" = feols(log(flow) ~ log(distw) + contig | iso_o + iso_d, vcov = "hetero", data = trade_2 ),
   "OLS - Aug." = feols(log(flow) ~ log(distw) + contig  + comlang_off + comcur + fta_wto
-                       | iso_o + iso_d, cluster = ~iso_o, data = trade_2 ),
-  "Poisson" = fepois(flow ~ log(distw) + contig | iso_o + iso_d, cluster = ~iso_o, data = trade_2 ),
+                       | iso_o + iso_d, vcov = "hetero", data = trade_2 ),
+  "Poisson" = fepois(flow ~ log(distw) + contig | iso_o + iso_d, vcov = "hetero", data = trade_2 ),
   "Poisson - Aug." = fepois(flow ~ log(distw) + contig  + comlang_off + comcur + fta_wto
-                            | iso_o + iso_d, cluster = ~iso_o, data = trade_2 )
+                            | iso_o + iso_d, vcov = "hetero", data = trade_2 )
 )
 
 coef =c("log(distw)" = "ln Distance",
@@ -311,15 +313,15 @@ trade_2[, fmp_pois_aug := sum(dist_struct_pois_aug*border_struct_pois_aug*comm_l
 
 list_model_1 <- list(
   "ln GDP" = list(
-    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1), cluster = ~iso_o, data = trade_2),
-    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1) | iso_d, cluster = ~iso_o, data = trade_2),
-    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1_aug) | iso_d, cluster = ~iso_o, data = trade_2),
-    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols), cluster = ~iso_o, data = trade_2),
-    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols) | iso_d, cluster = ~iso_o, data = trade_2),
-    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols_aug) | iso_d, cluster = ~iso_o, data = trade_2),
-    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois), cluster = ~iso_o, data = trade_2),
-    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois) | iso_d, cluster = ~iso_o, data = trade_2),
-    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois_aug) | iso_d, cluster = ~iso_o, data = trade_2))
+    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1), vcov = "hetero", data = trade_2),
+    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1) | iso_d, vcov = "hetero", data = trade_2),
+    "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1_aug) | iso_d, vcov = "hetero", data = trade_2),
+    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols), vcov = "hetero", data = trade_2),
+    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols) | iso_d, vcov = "hetero", data = trade_2),
+    "OLS" = feols(log(gdp_o_cap) ~ log(fmp_ols_aug) | iso_d, vcov = "hetero", data = trade_2),
+    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois), vcov = "hetero", data = trade_2),
+    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois) | iso_d, vcov = "hetero", data = trade_2),
+    "Poisson" = fepois(log(gdp_o_cap) ~ log(fmp_pois_aug) | iso_d, vcov = "hetero", data = trade_2))
 )
 
 map =  c(
@@ -341,3 +343,33 @@ table1 = modelsummary(
 )
 
 writeLines(as.character(table1), "table2_rv.typ")
+
+# Heteroskedasticity ------------------------------------------------------
+# We compute the heteroskedasticity of the OLS regression
+
+ols_1 = list_model_1$`ln GDP`$OLS
+data = data.frame(
+  fv = fitted(ols_1),
+  rv = resid(ols_1))
+
+ggplot(data, aes(x = fv, y =rv))+
+  geom_point(alpha = 0.2) + 
+  labs(
+    x = "Fitted Values",
+    y = "Residual Values"
+  ) +
+  theme_classic()
+ggsave("heteroskedasticity.pdf", width = 10, height = 8)
+
+  
+bp_df <- data.frame(rv2 = rv^2, fv = fv)
+bptest(rv2 ~ fv, data = bp_df)
+
+bp_test = function(model){
+  data = data.frame(
+    fv = fitted(model),
+    rv = resid(model))
+  bp_df <- data.frame(rv2 = rv^2, fv = fv)
+  test = bptest(rv2 ~ fv, data = bp_df)
+  return(test)
+}
