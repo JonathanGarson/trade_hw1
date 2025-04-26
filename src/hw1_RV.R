@@ -21,8 +21,9 @@ library(ggplot2)
 library(patchwork)
 
 # Data -------------------------------------------------------------------------
-
-trade = fread(here("biltrade.csv"))
+projectdir = here()
+setwd(projectdir)
+trade = fread("data/biltrade.csv")
 
 # Question 1 -------------------------------------------------------------------
 
@@ -75,7 +76,7 @@ fmp_table_rv = modelsummary(
   output = "typst"
 )
 
-writeLines(as.character(fmp_table_rv), "fmp_table_rv.typ")
+writeLines(as.character(fmp_table_rv), "output/fmp_table_rv.typ")
 
 # Extract parameters
 # Standard parameters - as in Redding and Venables (2004)
@@ -117,62 +118,66 @@ fmp_fe_pois_aug = fixef(model_fmp$`Poisson - Aug.`)$iso_d
 
 # We build our new column, we take the power of our coefficient phi_hat since distance is a continuous variable in our model,
 # and the exponential of fixed effects, given they are dummy.
-trade_1[, `:=` (dist_struct_log1 = distw^lambda_1_hat_log1,
-                border_struct_log1 = contig^lambda_2_hat_log1,
+trade_1[, `:=` (dist_struct_log1 = lambda_1_hat_log1*log(distw),
+                border_struct_log1 = lambda_2_hat_log1*contig,
                 fe_imp_log1 = fmp_fe_log1[paste(iso_d)],
-                dist_struct_ols = distw^lambda_1_hat_ols,
-                border_struct_ols = contig^lambda_2_hat_ols,
+                dist_struct_ols = lambda_1_hat_ols*log(distw),
+                border_struct_ols = lambda_2_hat_ols*contig,
                 fe_imp_ols = fmp_fe_ols[paste(iso_d)],
-                dist_struct_pois = distw^lambda_1_hat_pois,
-                border_struct_pois = contig^lambda_2_hat_pois,
+                dist_struct_pois = lambda_1_hat_pois*log(distw),
+                border_struct_pois = lambda_2_hat_pois*contig,
                 fe_imp_pois = fmp_fe_pois[paste(iso_d)]
                 )
         ]
-trade_1[, `:=` (exp_fe_imp_log1 = exp(fe_imp_log1),
-                exp_fe_imp_ols = exp(fe_imp_ols),
-                exp_fe_imp_pois = exp(fe_imp_pois))]
 
-# Augmented
-trade_1[, `:=` (dist_struct_log1_aug = distw^lambda_1_hat_log1_aug,
-                border_struct_log1_aug = contig^lambda_2_hat_log1_aug,
-                comm_lang_log1_aug = comlang_off^lambda_3_hat_log1_aug,
-                comcur_log1_aug = comcur^lambda_4_hat_log1_aug,
-                fta_wto_log1_aug = fta_wto^lambda_5_hat_log1_aug,
-                fe_imp_log1_aug = fmp_fe_log1_aug[paste(iso_d)],
-                
-                dist_struct_ols_aug = distw^lambda_1_hat_ols_aug,
-                border_struct_ols_aug = contig^lambda_2_hat_ols_aug,
-                comm_lang_ols_aug = comlang_off^lambda_3_hat_ols_aug,
-                comcur_ols_aug = comcur^lambda_4_hat_ols_aug,
-                fta_wto_ols_aug = fta_wto^lambda_5_hat_ols_aug,
-                fe_imp_ols_aug = fmp_fe_ols_aug[paste(iso_d)],
-                
-                dist_struct_pois_aug = distw^lambda_1_hat_pois_aug,
-                border_struct_pois_aug = contig^lambda_2_hat_pois_aug,
-                comm_lang_pois_aug = comlang_off^lambda_3_hat_pois_aug,
-                comcur_pois_aug = comcur^lambda_4_hat_pois_aug,
-                fta_wto_pois_aug = fta_wto^lambda_5_hat_pois_aug,
-                fe_imp_pois_aug = fmp_fe_pois[paste(iso_d)]
-                )
-        ]
-trade_1[, `:=` (exp_fe_imp_log1_aug = exp(fe_imp_log1_aug),
-                exp_fe_imp_ols_aug = exp(fe_imp_ols_aug),
-                exp_fe_imp_pois_aug = exp(fe_imp_pois_aug))]
-
+# Compute country i's market access in country j
+trade_1[, `:=` (mpj_log1 = exp(fe_imp_log1 + dist_struct_log1 + border_struct_log1),
+                mpj_ols = exp(fe_imp_ols + dist_struct_ols + border_struct_ols),
+                mpj_pois = exp(fe_imp_pois + dist_struct_pois + border_struct_pois))]
 
 # We create the FMP and GDP per capita variables
-trade_1[, fmp_log1 := sum(dist_struct_log1*border_struct_log1*exp_fe_imp_log1, na.rm = TRUE), by = iso_o]
-trade_1[, fmp_ols := sum(dist_struct_ols*border_struct_ols*exp_fe_imp_ols, na.rm = TRUE), by = iso_o]
-trade_1[, fmp_pois := sum(dist_struct_pois*border_struct_pois*exp_fe_imp_pois, na.rm = TRUE), by = iso_o]
+trade_1[, fmp_log1 := sum(mpj_log1, na.rm = TRUE), by = iso_o]
+trade_1[, fmp_ols := sum(mpj_ols, na.rm = TRUE), by = iso_o]
+trade_1[, fmp_pois := sum(mpj_pois, na.rm = TRUE), by = iso_o]
 trade_1[, `:=` (gdp_o_cap = gdp_o/(pop_o*1e6), gdp_d_cap = gdp_d/(pop_d*1e6)) ]
 
 # Augmented FMP
-trade_1[, fmp_log1_aug := sum(dist_struct_log1_aug*border_struct_log1_aug*comm_lang_log1_aug
-                              *comcur_log1_aug*fta_wto_log1_aug*exp_fe_imp_log1_aug, na.rm = TRUE), by = iso_o]
-trade_1[, fmp_ols_aug := sum(dist_struct_ols_aug*border_struct_ols_aug*comm_lang_ols_aug
-                             *comcur_ols_aug*fta_wto_ols_aug*exp_fe_imp_log1_aug, na.rm = TRUE), by = iso_o]
-trade_1[, fmp_pois_aug := sum(dist_struct_pois_aug*border_struct_pois_aug*comm_lang_pois_aug
-                              *comcur_pois_aug*fta_wto_pois_aug*exp_fe_imp_pois_aug, na.rm = TRUE), by = iso_o]
+trade_1[, `:=` (dist_struct_log1_aug = log(distw)*lambda_1_hat_log1_aug,
+                border_struct_log1_aug = contig*lambda_2_hat_log1_aug,
+                comm_lang_log1_aug = comlang_off*lambda_3_hat_log1_aug,
+                comcur_log1_aug = comcur*lambda_4_hat_log1_aug,
+                fta_wto_log1_aug = fta_wto*lambda_5_hat_log1_aug,
+                fe_imp_log1_aug = fmp_fe_log1_aug[paste(iso_d)],
+                
+                dist_struct_ols_aug = log(distw)*lambda_1_hat_ols_aug,
+                border_struct_ols_aug = contig*lambda_2_hat_ols_aug,
+                comm_lang_ols_aug = comlang_off*lambda_3_hat_ols_aug,
+                comcur_ols_aug = comcur*lambda_4_hat_ols_aug,
+                fta_wto_ols_aug = fta_wto*lambda_5_hat_ols_aug,
+                fe_imp_ols_aug = fmp_fe_ols_aug[paste(iso_d)],
+                
+                dist_struct_pois_aug = log(distw)*lambda_1_hat_pois_aug,
+                border_struct_pois_aug = contig*lambda_2_hat_pois_aug,
+                comm_lang_pois_aug = comlang_off*lambda_3_hat_pois_aug,
+                comcur_pois_aug = comcur*lambda_4_hat_pois_aug,
+                fta_wto_pois_aug = fta_wto*lambda_5_hat_pois_aug,
+                fe_imp_pois_aug = fmp_fe_pois[paste(iso_d)]
+)
+]
+
+
+# Compute country i's market access in country j
+trade_1[, `:=` (mpj_log1_aug = exp(fe_imp_log1_aug + dist_struct_log1_aug + border_struct_log1 +
+                                     comm_lang_log1_aug + comcur_log1_aug + fta_wto_log1_aug),
+                mpj_ols_aug = exp(fe_imp_ols_aug + dist_struct_ols_aug + border_struct_ols +
+                                comm_lang_ols_aug + comcur_ols_aug + fta_wto_ols_aug),
+                mpj_pois_aug = exp(fe_imp_pois_aug + dist_struct_pois_aug + border_struct_pois +
+                                 comm_lang_pois_aug + comcur_pois_aug + fta_wto_pois_aug))]
+
+# We create the FMP and GDP per capita variables
+trade_1[, fmp_log1_aug := sum(mpj_log1_aug, na.rm = TRUE), by = iso_o]
+trade_1[, fmp_ols_aug := sum(mpj_ols_aug, na.rm = TRUE), by = iso_o]
+trade_1[, fmp_pois_aug := sum(mpj_pois_aug, na.rm = TRUE), by = iso_o]
 
 
 ##### 3. REGRESS GDP PER CAPITA ON FMP #####
@@ -210,13 +215,18 @@ table1 = modelsummary(
   output = "typst"
 )
 
-writeLines(as.character(table1), "table1_rv.typ")
+writeLines(as.character(table1), "output/table1_rv.typ")
 
 ##### 4. REPEAT ESTIMATING PARAMETERS ON MULTIPLE YEARS #####
 
 # Question 2  -------------------------------------------------------------
+# Here we keep all years!
 trade_2 = trade[flow >= 0.0, ]
 
+
+# Regressing exports on relevant variables with several specifications
+# OLS (log), OLS, Poisson - Augmented version includes more parameters
+# to estimate trade costs than in Redding and Venables (2004)
 model_fmp = list(
   "OLS (Log + 1)" = feols(log(flow + 1) ~ log(distw) + contig | iso_o + iso_d, cluster = ~iso_o, data = trade_2 ),
   "OLS (Log + 1) - Aug." = feols(log(flow + 1) ~ log(distw) + contig + comlang_off + comcur + fta_wto
@@ -229,12 +239,14 @@ model_fmp = list(
                             | iso_o + iso_d, cluster = ~iso_o, data = trade_2 )
 )
 
+# Label map
 coef =c("log(distw)" = "ln Distance",
         "contig" = "Border",
         "comlang_off" = "Common Language",
         "comcur" = "Common Currency",
         "fta_wto" = "FTA/WTO")
 
+# Regression stats
 add <- data.frame(
   term = c("F-test", "Overdispersion"),
   fmp_ols_log1 = c(fitstat(model_fmp$`OLS (Log + 1)`, type = "f")$f$p, NA),
@@ -245,6 +257,7 @@ add <- data.frame(
   fmp_pois = c(NA, performance::check_overdispersion(model_fmp$`Poisson - Aug.`)$dispersion_ratio)
 )
 
+# Print out regression results
 fmp_table_rv = modelsummary(
   model = model_fmp,
   star = TRUE,
@@ -254,8 +267,10 @@ fmp_table_rv = modelsummary(
   output = "typst"
 )
 
-writeLines(as.character(fmp_table_rv), "fmp_table_rv_full_sample.typ")
+writeLines(as.character(fmp_table_rv), "output/fmp_table_rv_full_sample.typ")
 
+# Extract parameters
+# Standard parameters - as in Redding and Venables (2004)
 lambda_1_hat_log1 = model_fmp$`OLS (Log + 1)`$coefficients[["log(distw)"]] 
 lambda_1_hat_ols = model_fmp$OLS$coefficients[["log(distw)"]] 
 lambda_1_hat_pois = model_fmp$Poisson$coefficients[["log(distw)"]] 
@@ -289,66 +304,74 @@ fmp_fe_log1_aug = fixef(model_fmp$`OLS (Log + 1) - Aug.`)$iso_d
 fmp_fe_ols_aug = fixef(model_fmp$`OLS - Aug.`)$iso_d
 fmp_fe_pois_aug = fixef(model_fmp$`Poisson - Aug.`)$iso_d
 
+
+##### 2. COMPUTING FMP AND GDP PER CAPITA #####
+
 # We build our new column, we take the power of our coefficient phi_hat since distance is a continuous variable in our model,
 # and the exponential of fixed effects, given they are dummy.
-trade_2[, `:=` (dist_struct_log1 = distw^lambda_1_hat_log1,
-                border_struct_log1 = contig^lambda_2_hat_log1,
+trade_2[, `:=` (dist_struct_log1 = lambda_1_hat_log1*log(distw),
+                border_struct_log1 = lambda_2_hat_log1*contig,
                 fe_imp_log1 = fmp_fe_log1[paste(iso_d)],
-                dist_struct_ols = distw^lambda_1_hat_ols,
-                border_struct_ols = contig^lambda_2_hat_ols,
+                dist_struct_ols = lambda_1_hat_ols*log(distw),
+                border_struct_ols = lambda_2_hat_ols*contig,
                 fe_imp_ols = fmp_fe_ols[paste(iso_d)],
-                dist_struct_pois = distw^lambda_1_hat_pois,
-                border_struct_pois = contig^lambda_2_hat_pois,
+                dist_struct_pois = lambda_1_hat_pois*log(distw),
+                border_struct_pois = lambda_2_hat_pois*contig,
                 fe_imp_pois = fmp_fe_pois[paste(iso_d)]
 )
 ]
-trade_2[, `:=` (exp_fe_imp_log1 = exp(fe_imp_log1),
-                exp_fe_imp_ols = exp(fe_imp_ols),
-                exp_fe_imp_pois = exp(fe_imp_pois))]
 
-# Augmented
-trade_2[, `:=` (dist_struct_log1_aug = distw^lambda_1_hat_log1_aug,
-                border_struct_log1_aug = contig^lambda_2_hat_log1_aug,
-                comm_lang_log1_aug = comlang_off^lambda_3_hat_log1_aug,
-                comcur_log1_aug = comcur^lambda_4_hat_log1_aug,
-                fta_wto_log1_aug = fta_wto^lambda_5_hat_log1_aug,
-                fe_imp_log1_aug = fmp_fe_log1_aug[paste(iso_d)],
-                
-                dist_struct_ols_aug = distw^lambda_1_hat_ols_aug,
-                border_struct_ols_aug = contig^lambda_2_hat_ols_aug,
-                comm_lang_ols_aug = comlang_off^lambda_3_hat_ols_aug,
-                comcur_ols_aug = comcur^lambda_4_hat_ols_aug,
-                fta_wto_ols_aug = fta_wto^lambda_5_hat_ols_aug,
-                fe_imp_ols_aug = fmp_fe_ols_aug[paste(iso_d)],
-                
-                dist_struct_pois_aug = distw^lambda_1_hat_pois_aug,
-                border_struct_pois_aug = contig^lambda_2_hat_pois_aug,
-                comm_lang_pois_aug = comlang_off^lambda_3_hat_pois_aug,
-                comcur_pois_aug = comcur^lambda_4_hat_pois_aug,
-                fta_wto_pois_aug = fta_wto^lambda_5_hat_pois_aug,
-                fe_imp_pois_aug = fmp_fe_pois[paste(iso_d)]
-)
-]
-trade_2[, `:=` (exp_fe_imp_log1_aug = exp(fe_imp_log1_aug),
-                exp_fe_imp_ols_aug = exp(fe_imp_ols_aug),
-                exp_fe_imp_pois_aug = exp(fe_imp_pois_aug))]
+# Compute country i's market access in country j
+trade_2[, `:=` (mpj_log1 = exp(fe_imp_log1 + dist_struct_log1 + border_struct_log1),
+                mpj_ols = exp(fe_imp_ols + dist_struct_ols + border_struct_ols),
+                mpj_pois = exp(fe_imp_pois + dist_struct_pois + border_struct_pois))]
 
-
-# We create the fmp and gdp per capita variables
-trade_2[, fmp_log1 := sum(dist_struct_log1*border_struct_log1*exp_fe_imp_log1, na.rm = TRUE), by = .(year,iso_o)]
-trade_2[, fmp_ols := sum(dist_struct_ols*border_struct_ols*exp_fe_imp_ols, na.rm = TRUE), by = .(year,iso_o)]
-trade_2[, fmp_pois := sum(dist_struct_pois*border_struct_pois*exp_fe_imp_pois, na.rm = TRUE), by = .(year,iso_o)]
+# We create the FMP and GDP per capita variables
+trade_2[, fmp_log1 := sum(mpj_log1, na.rm = TRUE), by = .(iso_o, year)]
+trade_2[, fmp_ols := sum(mpj_ols, na.rm = TRUE), by = .(iso_o, year)]
+trade_2[, fmp_pois := sum(mpj_pois, na.rm = TRUE), by = .(iso_o, year)]
 trade_2[, `:=` (gdp_o_cap = gdp_o/(pop_o*1e6), gdp_d_cap = gdp_d/(pop_d*1e6)) ]
 
 # Augmented FMP
-trade_2[, fmp_log1_aug := sum(dist_struct_log1_aug*border_struct_log1_aug*comm_lang_log1_aug
-                              *comcur_log1_aug*fta_wto_log1_aug*exp_fe_imp_log1_aug, na.rm = TRUE), by = .(year,iso_o)]
-trade_2[, fmp_ols_aug := sum(dist_struct_ols_aug*border_struct_ols_aug*comm_lang_ols_aug
-                             *comcur_ols_aug*fta_wto_ols_aug*exp_fe_imp_log1_aug, na.rm = TRUE), by = .(year,iso_o)]
-trade_2[, fmp_pois_aug := sum(dist_struct_pois_aug*border_struct_pois_aug*comm_lang_pois_aug
-                              *comcur_pois_aug*fta_wto_pois_aug*exp_fe_imp_pois_aug, na.rm = TRUE), by = .(year,iso_o)]
+trade_2[, `:=` (dist_struct_log1_aug = log(distw)*lambda_1_hat_log1_aug,
+                border_struct_log1_aug = contig*lambda_2_hat_log1_aug,
+                comm_lang_log1_aug = comlang_off*lambda_3_hat_log1_aug,
+                comcur_log1_aug = comcur*lambda_4_hat_log1_aug,
+                fta_wto_log1_aug = fta_wto*lambda_5_hat_log1_aug,
+                fe_imp_log1_aug = fmp_fe_log1_aug[paste(iso_d)],
+                
+                dist_struct_ols_aug = log(distw)*lambda_1_hat_ols_aug,
+                border_struct_ols_aug = contig*lambda_2_hat_ols_aug,
+                comm_lang_ols_aug = comlang_off*lambda_3_hat_ols_aug,
+                comcur_ols_aug = comcur*lambda_4_hat_ols_aug,
+                fta_wto_ols_aug = fta_wto*lambda_5_hat_ols_aug,
+                fe_imp_ols_aug = fmp_fe_ols_aug[paste(iso_d)],
+                
+                dist_struct_pois_aug = log(distw)*lambda_1_hat_pois_aug,
+                border_struct_pois_aug = contig*lambda_2_hat_pois_aug,
+                comm_lang_pois_aug = comlang_off*lambda_3_hat_pois_aug,
+                comcur_pois_aug = comcur*lambda_4_hat_pois_aug,
+                fta_wto_pois_aug = fta_wto*lambda_5_hat_pois_aug,
+                fe_imp_pois_aug = fmp_fe_pois[paste(iso_d)]
+)
+]
 
-list_model_1 <- list(
+
+# Compute country i's market access in country j
+trade_2[, `:=` (mpj_log1_aug = exp(fe_imp_log1_aug + dist_struct_log1_aug + border_struct_log1 +
+                                     comm_lang_log1_aug + comcur_log1_aug + fta_wto_log1_aug),
+                mpj_ols_aug = exp(fe_imp_ols_aug + dist_struct_ols_aug + border_struct_ols +
+                                    comm_lang_ols_aug + comcur_ols_aug + fta_wto_ols_aug),
+                mpj_pois_aug = exp(fe_imp_pois_aug + dist_struct_pois_aug + border_struct_pois +
+                                     comm_lang_pois_aug + comcur_pois_aug + fta_wto_pois_aug))]
+
+# Augmented FMP variables
+trade_2[, fmp_log1_aug := sum(mpj_log1_aug, na.rm = TRUE), by = .(iso_o, year)]
+trade_2[, fmp_ols_aug := sum(mpj_ols_aug, na.rm = TRUE), by = .(iso_o, year)]
+trade_2[, fmp_pois_aug := sum(mpj_pois_aug, na.rm = TRUE), by = .(iso_o, year)]
+
+# Regressing log GDP per capita on log FMP
+list_model_2 <- list(
   "ln GDP" = list(
     "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1), cluster = ~iso_o, data = trade_2),
     "OLS (Log + 1)" = feols(log(gdp_o_cap) ~ log(fmp_log1) | iso_d, cluster = ~iso_o, data = trade_2),
@@ -379,13 +402,12 @@ table1 = modelsummary(
   output = "typst"
 )
 
-writeLines(as.character(table1), "table2_rv.typ")
+writeLines(as.character(table1), "output/table2_rv.typ")
 
 
 ##### 5. PLOT GDP VS FMP #####
 # Extract unique data for 2016 
-plot_data = unique(trade_1[, .(iso_o, gdp_o_cap, fmp_log1, fmp_ols, fmp_pois, 
-                               dist_struct_ols, border_struct_ols,exp_fe_imp_ols)])
+plot_data = unique(trade_1[, .(iso_o, gdp_o_cap, fmp_log1, fmp_ols, fmp_pois)])
 plot_data = plot_data[!is.na(gdp_o_cap)]
 
 # Filter to remove zero-FMP observations
@@ -438,5 +460,4 @@ final_plot <- (fmp_log1_plot +
 final_plot
 
 # Save
-plot_save_path = here("gdpvsfmp.png")
-ggsave(plot_save_path, final_plot, width = 8.5, height = 11, units = "in")
+ggsave("output/gdpvsfmp.png", final_plot, width = 8.5, height = 11, units = "in")
