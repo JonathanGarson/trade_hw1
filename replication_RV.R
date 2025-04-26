@@ -17,6 +17,10 @@ trade[, distw := distw/1000]
 trade[, ln_distw := log(distw)] 
 
 # Relabeling -------------------------------------------------------------
+trade[, iso_o := factor(iso_o)]
+trade[, iso_o := relevel(iso_o, ref = "USA")]
+trade[, iso_d := factor(iso_d)]
+trade[, iso_d := relevel(iso_d, ref = "USA")]
 
 trade[, cty := as.integer(factor(iso_o))]
 trade[, ptn := as.integer(factor(iso_o))]
@@ -33,8 +37,8 @@ trade[, temp := NULL]
 
 # Reshape -----------------------------------------------------------------
 # We exclude the US to make it a reference point
-trade[, ctn := relevel(iso_o, ref = "USA")]
-fmp_log1 = feols(ln1_totalexp ~ ln_distw + contig | cnt + ptn , vcov = "hetero", data = trade)
+
+fmp_log1 = feols(ln1_totalexp ~ ln_distw + contig | cty + ptn , vcov = "hetero", data = trade)
 
 # 2. Run the gravity regression
 cc_vars <- grep("^cc", names(DT), value=TRUE)
