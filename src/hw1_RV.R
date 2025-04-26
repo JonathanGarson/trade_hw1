@@ -392,7 +392,7 @@ map =  c(
   "log(fmp_pois_aug)" = "ln FMP (Aug.)"
 )
 
-table1 = modelsummary(
+table2 = modelsummary(
   model = list_model_2,
   star = TRUE,
   shape = "cbind",
